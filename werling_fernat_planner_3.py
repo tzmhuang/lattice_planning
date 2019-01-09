@@ -4,7 +4,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import math
-import threading
 
 DELTA_T = 1 # delta t in lattice
 DELTA_D = 0.5 # delta d in lateral lattice
@@ -22,11 +21,13 @@ ROAD_WIDTH = 2
 S_MARGIN = 5
 
 
-class frenet_trajectory_sets(): #a set of frenet trajectories within a planning cycle
+
+
+class lat_planning():
     def __init__(self,t_range):
         self.t0 = t_range[0]
         self.t1 = t_range[1]
-
+    
     def gen_lat_lattice(self,d0,d_d0,dd_d0,target_path):
         self.lat_path = target_path
         self.lat_lattice = []
@@ -59,6 +60,18 @@ class frenet_trajectory_sets(): #a set of frenet trajectories within a planning 
                 self.lat_lattice.append(traj)
         self.lat_opt_traj.opt = True
 
+    def plot_lat_lattice(self,ax):
+        for l in self.lat_lattice:
+            line = l.plot(ax,'grey',0.5)
+            #self.opt_traj.plot('green',1)
+
+
+
+class lon_planning():
+    def __init__(self,t_range):
+        self.t0 = t_range[0]
+        self.t1 = t_range[1]
+    
     def gen_lon_lattice(self,s0,d_s0,dd_s0,target_path): #Following/cruising
         self.lon_path = target_path
         self.lon_lattice = []
@@ -89,16 +102,13 @@ class frenet_trajectory_sets(): #a set of frenet trajectories within a planning 
                     self.min_t = t_n
                     self.lon_opt_traj = traj
                 self.lon_lattice.append(traj)
-            self.lon_opt_traj.opt = True
-
-    def plot_lat_lattice(self,ax):
-        for l in self.lat_lattice:
-            line = l.plot(ax,'grey',0.5)
-        #self.opt_traj.plot('green',1)
+        self.lon_opt_traj.opt = True
 
     def plot_lon_lattice(self,ax):
         for l in self.lon_lattice:
             l.plot(ax,'grey',0.5)
+
+
 
 class quint_poly():
     opt = False
@@ -304,19 +314,20 @@ class simulation():
         self.t = self.t + SIM_STEP
 
     def update_pos(self):
-        self.d0 = self.fts.lat_opt_traj.eval(self.t)[0]
-        self.d_d0 = self.fts.lat_opt_traj.first_derivative_eval(self.t)[0]
-        self.dd_d0 = self.fts.lat_opt_traj.second_derivative_eval(self.t)[0]
-        self.s0 = self.fts.lon_opt_traj.eval(self.t)[0]
-        self.d_s0 = self.fts.lon_opt_traj.first_derivative_eval(self.t)[0]
-        self.dd_s0 = self.fts.lon_opt_traj.second_derivative_eval(self.t)[0]
+        self.d0 = self.lat_fts.lat_opt_traj.eval(self.t)[0]
+        self.d_d0 = self.lat_fts.lat_opt_traj.first_derivative_eval(self.t)[0]
+        self.dd_d0 = self.lat_fts.lat_opt_traj.second_derivative_eval(self.t)[0]
+        self.s0 = self.lon_fts.lon_opt_traj.eval(self.t)[0]
+        self.d_s0 = self.lon_fts.lon_opt_traj.first_derivative_eval(self.t)[0]
+        self.dd_s0 = self.lon_fts.lon_opt_traj.second_derivative_eval(self.t)[0]
 
     def plan(self):
-        self.fts = frenet_trajectory_sets([self.t,self.t+P_T])
-        self.fts.gen_lat_lattice(self.d0,self.d_d0,self.dd_d0,self.lat_target_path)
-        self.fts.plot_lat_lattice(self.ax2[1])
-        self.fts.gen_lon_lattice(self.s0,self.d_s0,self.dd_s0,self.lon_target_path)
-        self.fts.plot_lon_lattice(self.ax2[0])
+        self.lat_fts = lat_planning([self.t, self.t + P_T])
+        self.lon_fts = lon_planning([self.t, self.t + P_T])
+        self.lat_fts.gen_lat_lattice(self.d0,self.d_d0,self.dd_d0,self.lat_target_path)
+        self.lat_fts.plot_lat_lattice(self.ax2[1])
+        self.lon_fts.gen_lon_lattice(self.s0,self.d_s0,self.dd_s0,self.lon_target_path)
+        self.lon_fts.plot_lon_lattice(self.ax2[0])
 
 
     def init_main_plot(self):
@@ -350,8 +361,8 @@ class simulation():
     def refresh_plots(self):
         self.lon_xdata.append(self.t)
         self.lat_xdata.append(self.t)
-        self.lon_ydata.append(self.fts.lon_opt_traj.eval(self.t)[0])
-        self.lat_ydata.append(self.fts.lat_opt_traj.eval(self.t)[0])
+        self.lon_ydata.append(self.lon_fts.lon_opt_traj.eval(self.t)[0])
+        self.lat_ydata.append(self.lat_fts.lat_opt_traj.eval(self.t)[0])
         self.line_lon.set_data(self.lon_xdata,self.lon_ydata)
         self.line_lat.set_data(self.lat_xdata,self.lat_ydata)
         self.rect.set_visible(False)
@@ -367,7 +378,7 @@ class simulation():
         self.ax.add_patch(self.rect)
 
     def log(self):
-        print ('start:[ t = {}, d0 = {}, d_d0 = {}, dd_d0 = {} ] COST = {}'.format(self.t,self.d0, self.d_d0, self.dd_d0,self.fts.lat_opt_traj.cost))
+        print ('start:[ t = {}, d0 = {}, d_d0 = {}, dd_d0 = {} ] COST = {}'.format(self.t,self.d0, self.d_d0, self.dd_d0,self.lat_fts.lat_opt_traj.cost))
 
 def spin():
     sim = simulation()
