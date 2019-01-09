@@ -146,6 +146,51 @@ class quint_poly():
         line = ax.plot(self.t_pts,self.traj_eval,color = col, lw = w)
         return line
 
+
+class quad_poly():
+    opt = False
+    t_pts = []
+    traj_eval = []
+    traj_d_eval = []
+    traj_dd_eval = []
+    traj_ddd_eval = []
+    def __init__(self,d0,d_d0,dd_d0,d_d1,dd_d1,t0,t1):
+        self.t0 = t0
+        self.t1 = t1
+        self.a0 = d0
+        self.a1 = d_d0
+        self.a2 = dd_d0/2
+        t = t1-t0 #normalize the t to start from 0
+        #print (t)
+        T = np.array(
+            [[3*t**2, 4*t**3],\
+            [6*t, 12*t**2]]
+            )
+
+        b = np.array([[d_d1-(self.a1 + self.a2*t)],\
+                    [dd_d1 - (self.a2*2)]])
+
+        self.a3, self.a4 = np.linalg.solve(T,b)
+
+    def eval(self,t):
+        t = t-self.t0
+        return self.a0 + self.a1*t + self.a2*t**2 + self.a3*t**3 + self.a4*t**4
+
+    def first_derivative_eval(self,t):
+        t = t-self.t0
+        return self.a1 + 2*self.a2*t + 3*self.a3*t**2 + 4*self.a4*t**3
+
+    def second_derivative_eval(self,t):
+        t = t-self.t0
+        return 2*self.a2 + 6*self.a3*t + 12*self.a4*t**2
+
+    def third_derivative_eval(self,t):
+        t = t-self.t0
+        return 6*self.a3 + 24*self.a4*t
+
+    def plot(self,ax,col,w):
+        line = ax.plot(self.t_pts,self.traj_eval,color = col, lw = w)
+        return line
 #d0,d_d0,dd_d0,d1,d_d1,dd_d1,t_range,d_range
 # fts = frenet_trajectory_sets(3,0,0,0,0,0,[0,3],[-2,2])
 # fts.gen_lattice()
